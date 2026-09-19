@@ -1,17 +1,34 @@
 const nodemailer = require('nodemailer');
 
 /**
+ * Strips surrounding single/double quotes and whitespace from env strings
+ */
+const cleanEnv = (val) => {
+  if (!val) return '';
+  let str = val.toString().trim();
+  if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+  return str;
+};
+
+/**
  * Creates and returns a Nodemailer transporter based on .env config.
  */
 const getTransporter = () => {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  const host = cleanEnv(process.env.SMTP_HOST);
+  const user = cleanEnv(process.env.SMTP_USER);
+  const pass = cleanEnv(process.env.SMTP_PASS);
+  const port = Number(cleanEnv(process.env.SMTP_PORT)) || 465;
+
+  if (host && user && pass) {
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
+      host,
+      port,
+      secure: port === 465,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user,
+        pass,
       },
       tls: {
         rejectUnauthorized: false,
@@ -43,8 +60,17 @@ const sendOtpEmail = async (email, otp, name = 'Attendee') => {
     };
   }
 
+  const user = cleanEnv(process.env.SMTP_USER) || 'admin@mvcon.in';
+
   const mailOptions = {
-    from: process.env.EMAIL_FROM || '"MVCON 2027" <no-reply@mvcon2027.com>',
+    from: {
+      name: 'MVCON 2027',
+      address: user,
+    },
+    envelope: {
+      from: user,
+      to: email,
+    },
     to: email,
     subject: `Your MVCON 2027 Verification Code: ${otp}`,
     html: `
@@ -133,8 +159,17 @@ const sendRegistrationConfirmationEmail = async (attendee) => {
     `;
   }
 
+  const user = cleanEnv(process.env.SMTP_USER) || 'admin@mvcon.in';
+
   const mailOptions = {
-    from: process.env.EMAIL_FROM || '"MVCON 2027" <admin@mvcon.in>',
+    from: {
+      name: 'MVCON 2027',
+      address: user,
+    },
+    envelope: {
+      from: user,
+      to: attendee.email,
+    },
     to: attendee.email,
     subject: `Registration Confirmed: MVCON 2027 Pass ID ${attendee.registrationId}`,
     attachments,

@@ -99,7 +99,14 @@ const sendOtp = async (req, res, next) => {
     );
 
     // Send email or log to console
-    await sendOtpEmail(normalizedEmail, otp, fullName || 'Attendee');
+    const emailResult = await sendOtpEmail(normalizedEmail, otp, fullName || 'Attendee');
+
+    if (emailResult && !emailResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to send verification email: ${emailResult.error || 'SMTP delivery failed'}. Please verify email settings or try again.`,
+      });
+    }
 
     res.status(200).json({
       success: true,
