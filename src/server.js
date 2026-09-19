@@ -15,13 +15,59 @@ connectDB();
 const app = express();
 
 // Enable Cross-Origin Resource Sharing (CORS)
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-app.use(
-  cors({
-    origin: [clientUrl, 'http://localhost:3000', 'http://127.0.0.1:3000'],
-    credentials: true,
-  })
-);
+const allowedOrigins = [
+  'https://mvcon.vercel.app',
+  'https://mvcon.in',
+  'https://www.mvcon.in',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+];
+
+if (process.env.CLIENT_URL) {
+  process.env.CLIENT_URL.split(',').forEach((url) => {
+    const trimmed = url.trim();
+    if (trimmed && !allowedOrigins.includes(trimmed)) {
+      allowedOrigins.push(trimmed);
+    }
+  });
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (such as mobile apps, curl, or server-to-server)
+    if (!origin) return callback(null, true);
+
+    try {
+      const parsedUrl = new URL(origin);
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        parsedUrl.hostname.endsWith('.vercel.app') ||
+        parsedUrl.hostname === 'vercel.app' ||
+        parsedUrl.hostname === 'mvcon.in' ||
+        parsedUrl.hostname.endsWith('.mvcon.in') ||
+        parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname === '127.0.0.1';
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+    } catch (e) {
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+    }
+
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Body parser middlewares
 app.use(express.json());
