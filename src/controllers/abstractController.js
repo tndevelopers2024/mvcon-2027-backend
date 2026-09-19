@@ -33,6 +33,7 @@ const submitAbstract = async (req, res, next) => {
       email,
       phone,
       institution,
+      city,
       department,
     } = req.body;
 
@@ -62,6 +63,7 @@ const submitAbstract = async (req, res, next) => {
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
       institution: institution.trim(),
+      city: (city || '').trim(),
       department: (department || '').trim(),
       fileUrl,
       fileName: req.file.filename,

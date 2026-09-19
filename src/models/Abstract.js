@@ -39,6 +39,11 @@ const AbstractSchema = new mongoose.Schema(
       required: [true, 'Institution / Hospital is required'],
       trim: true,
     },
+    city: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     department: {
       type: String,
       default: '',
@@ -80,6 +85,7 @@ AbstractSchema.index({
   submissionId: 'text',
   presentingAuthor: 'text',
   institution: 'text',
+  city: 'text',
   registrationId: 'text',
   email: 'text',
 });
