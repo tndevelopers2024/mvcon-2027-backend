@@ -19,6 +19,8 @@ const allowedOrigins = [
   'https://mvcon.vercel.app',
   'https://mvcon.in',
   'https://www.mvcon.in',
+  'https://mvcon.space',
+  'https://www.mvcon.space',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3000',
@@ -33,31 +35,31 @@ if (process.env.CLIENT_URL) {
   });
 }
 
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  try {
+    const parsedUrl = new URL(origin);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    return (
+      allowedOrigins.includes(origin) ||
+      hostname === 'mvcon.in' ||
+      hostname.endsWith('.mvcon.in') ||
+      hostname === 'mvcon.space' ||
+      hostname.endsWith('.mvcon.space') ||
+      hostname.endsWith('.vercel.app') ||
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1'
+    );
+  } catch (e) {
+    return allowedOrigins.includes(origin);
+  }
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (such as mobile apps, curl, or server-to-server)
-    if (!origin) return callback(null, true);
-
-    try {
-      const parsedUrl = new URL(origin);
-      const isAllowed =
-        allowedOrigins.includes(origin) ||
-        parsedUrl.hostname.endsWith('.vercel.app') ||
-        parsedUrl.hostname === 'vercel.app' ||
-        parsedUrl.hostname === 'mvcon.in' ||
-        parsedUrl.hostname.endsWith('.mvcon.in') ||
-        parsedUrl.hostname === 'localhost' ||
-        parsedUrl.hostname === '127.0.0.1';
-
-      if (isAllowed) {
-        return callback(null, true);
-      }
-    } catch (e) {
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
     }
-
     return callback(null, false);
   },
   credentials: true,
@@ -67,7 +69,22 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+
+// Explicit preflight and header injection middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // Body parser middlewares
 app.use(express.json());
