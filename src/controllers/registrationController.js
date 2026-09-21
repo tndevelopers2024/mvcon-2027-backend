@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { generateQrCodeFile } = require('../services/qrService');
 const Registration = require('../models/Registration');
 const Otp = require('../models/Otp');
 const ScanLog = require('../models/ScanLog');
@@ -291,16 +292,7 @@ const registerAttendee = async (req, res, next) => {
       paid: true,
     });
 
-    const qrCode = await QRCode.toDataURL(qrPayload, {
-      errorCorrectionLevel: 'M',
-      type: 'image/png',
-      margin: 2,
-      width: 320,
-      color: {
-        dark: '#0b1623',
-        light: '#ffffff',
-      },
-    });
+    const qrCode = await generateQrCodeFile(registrationId, qrPayload);
 
     // Generate a secure random password for attendee login (e.g. MVC27#A4B9C2)
     const generatedPassword = password || `MVC27#${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -411,10 +403,10 @@ const getAllRegistrations = async (req, res, next) => {
 
     let registrations = await Registration.find(query).sort({ createdAt: -1 });
 
-    // Ensure any previously registered attendee without qrCode gets one generated
+    // Ensure any previously registered attendee without qrCode or with base64 gets a file generated
     const updatedRegistrations = await Promise.all(
       registrations.map(async (reg) => {
-        if (!reg.qrCode && reg.registrationId) {
+        if ((!reg.qrCode || reg.qrCode.startsWith('data:')) && reg.registrationId) {
           try {
             const qrPayload = JSON.stringify({
               conference: 'MVCON 2027',
@@ -427,13 +419,7 @@ const getAllRegistrations = async (req, res, next) => {
               councilNumber: reg.stateMedicalCouncilNumber,
               verified: true,
             });
-            reg.qrCode = await QRCode.toDataURL(qrPayload, {
-              errorCorrectionLevel: 'M',
-              type: 'image/png',
-              margin: 2,
-              width: 320,
-              color: { dark: '#0b1623', light: '#ffffff' },
-            });
+            reg.qrCode = await generateQrCodeFile(reg.registrationId, qrPayload);
             await Registration.updateOne({ _id: reg._id }, { $set: { qrCode: reg.qrCode } });
           } catch (e) {
             // Ignore error in loop
@@ -477,8 +463,8 @@ const getRegistrationById = async (req, res, next) => {
       });
     }
 
-    // If QR code is missing for this attendee, generate and save it
-    if (!registration.qrCode && registration.registrationId) {
+    // If QR code is missing or base64 for this attendee, generate and save it as file
+    if ((!registration.qrCode || registration.qrCode.startsWith('data:')) && registration.registrationId) {
       const qrPayload = JSON.stringify({
         conference: 'MVCON 2027',
         regId: registration.registrationId,
@@ -490,13 +476,7 @@ const getRegistrationById = async (req, res, next) => {
         councilNumber: registration.stateMedicalCouncilNumber,
         verified: true,
       });
-      registration.qrCode = await QRCode.toDataURL(qrPayload, {
-        errorCorrectionLevel: 'M',
-        type: 'image/png',
-        margin: 2,
-        width: 320,
-        color: { dark: '#0b1623', light: '#ffffff' },
-      });
+      registration.qrCode = await generateQrCodeFile(registration.registrationId, qrPayload);
       await Registration.updateOne({ _id: registration._id }, { $set: { qrCode: registration.qrCode } });
     }
 

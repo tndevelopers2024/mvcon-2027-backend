@@ -1,4 +1,5 @@
 const QRCode = require('qrcode');
+const { generateQrCodeFile } = require('../services/qrService');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const Registration = require('../models/Registration');
@@ -65,8 +66,8 @@ const login = async (req, res, next) => {
     if (attendee && attendee.password) {
       const isMatch = await attendee.matchPassword(password);
       if (isMatch) {
-        // Ensure QR code exists
-        if (!attendee.qrCode && attendee.registrationId) {
+        // Ensure QR code exists and is saved as upload file
+        if ((!attendee.qrCode || attendee.qrCode.startsWith('data:')) && attendee.registrationId) {
           try {
             const qrPayload = JSON.stringify({
               conference: 'MVCON 2027',
@@ -79,13 +80,7 @@ const login = async (req, res, next) => {
               councilNumber: attendee.stateMedicalCouncilNumber,
               verified: true,
             });
-            attendee.qrCode = await QRCode.toDataURL(qrPayload, {
-              errorCorrectionLevel: 'M',
-              type: 'image/png',
-              margin: 2,
-              width: 320,
-              color: { dark: '#0b1623', light: '#ffffff' },
-            });
+            attendee.qrCode = await generateQrCodeFile(attendee.registrationId, qrPayload);
             await Registration.updateOne({ _id: attendee._id }, { $set: { qrCode: attendee.qrCode } });
           } catch (e) {
             // non-fatal
@@ -200,8 +195,8 @@ const getMe = async (req, res, next) => {
       });
     }
 
-    // Ensure QR code is present
-    if (!attendee.qrCode && attendee.registrationId) {
+    // Ensure QR code is present as upload file
+    if ((!attendee.qrCode || attendee.qrCode.startsWith('data:')) && attendee.registrationId) {
       const qrPayload = JSON.stringify({
         conference: 'MVCON 2027',
         regId: attendee.registrationId,
@@ -213,13 +208,7 @@ const getMe = async (req, res, next) => {
         councilNumber: attendee.stateMedicalCouncilNumber,
         verified: true,
       });
-      attendee.qrCode = await QRCode.toDataURL(qrPayload, {
-        errorCorrectionLevel: 'M',
-        type: 'image/png',
-        margin: 2,
-        width: 320,
-        color: { dark: '#0b1623', light: '#ffffff' },
-      });
+      attendee.qrCode = await generateQrCodeFile(attendee.registrationId, qrPayload);
       await Registration.updateOne({ _id: attendee._id }, { $set: { qrCode: attendee.qrCode } });
     }
 

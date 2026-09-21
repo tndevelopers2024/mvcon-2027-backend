@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { getQrDiskPath } = require('./qrService');
 
 /**
  * Strips surrounding single/double quotes and whitespace from env strings
@@ -132,14 +133,26 @@ const sendRegistrationConfirmationEmail = async (attendee) => {
   let qrCodeHtmlSection = '';
 
   if (attendee.qrCode) {
-    // Extract raw base64 data from data:image/png;base64,...
-    const base64Data = attendee.qrCode.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
-    attachments.push({
-      filename: `MVCON2027_${attendee.registrationId}_Pass.png`,
-      content: base64Data,
-      encoding: 'base64',
-      cid: 'attendee-pass-qrcode',
-    });
+    if (attendee.qrCode.startsWith('data:image/')) {
+      // Legacy base64 data URL
+      const base64Data = attendee.qrCode.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+      attachments.push({
+        filename: `MVCON2027_${attendee.registrationId}_Pass.png`,
+        content: base64Data,
+        encoding: 'base64',
+        cid: 'attendee-pass-qrcode',
+      });
+    } else {
+      // Uploaded image file
+      const diskPath = getQrDiskPath(attendee.qrCode);
+      if (diskPath) {
+        attachments.push({
+          filename: `MVCON2027_${attendee.registrationId}_Pass.png`,
+          path: diskPath,
+          cid: 'attendee-pass-qrcode',
+        });
+      }
+    }
 
     qrCodeHtmlSection = `
       <div style="margin: 24px 0; text-align: center; background-color: #f8fafc; border: 2px dashed #0369a1; border-radius: 12px; padding: 20px;">
